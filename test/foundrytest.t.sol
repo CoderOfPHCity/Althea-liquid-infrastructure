@@ -77,12 +77,11 @@ contract LiquidInfrastructureERC20Test is Test {
         uint256 mintAmount = 1000 * 10 ** 18;
         uint256 initialSupply = liquidInfrastructureERC20.totalSupply();
 
-        // unapproved holder3
         vm.expectRevert("receiver not approved to hold the token");
         liquidInfrastructureERC20.mint(holder3, mintAmount);
         assertEq(liquidInfrastructureERC20.balanceOf(holder3), 0);
 
-        // mint and distribute to unapproved holder3
+        // mint to unapproved holder3
         vm.expectRevert("receiver not approved to hold the token");
         liquidInfrastructureERC20.mintAndDistribute(holder3, mintAmount);
         assertEq(liquidInfrastructureERC20.totalSupply(), initialSupply);
@@ -152,6 +151,31 @@ contract LiquidInfrastructureERC20Test is Test {
         vm.stopPrank();
     }
 
+    function testBasicDistributionTests() public {
+        vm.startPrank(owner);
+        LiquidInfrastructureNFT nftToManage = new LiquidInfrastructureNFT("NFT1");
+
+        IERC20 erc20a = mockDistributableTokenA;
+
+        // Register one NFT
+        // transferNftToErc20AndManage(liquidInfrastructureERC20, nft1, owner);
+
+        nftToManage.transferFrom(owner, address(liquidInfrastructureERC20), nftToManage.AccountId());
+        assertEq(nftToManage.ownerOf(nftToManage.AccountId()), address(liquidInfrastructureERC20));
+
+        liquidInfrastructureERC20.addManagedNFT(address(nftToManage));
+
+        nftToManage = LiquidInfrastructureNFT(address(nftToManage));
+
+        // Allocate some rewards to the NFT
+        uint256 rewardAmount1 = 100;
+        erc20a.transfer(address(nftToManage), rewardAmount1);
+        assertEq(erc20a.balanceOf(address(nftToManage)), rewardAmount1);
+
+        liquidInfrastructureERC20.withdrawFromAllManagedNFTs();
+        liquidInfrastructureERC20.distributeToAllHolders();
+    }
+
     function transferNftToErc20AndManage(
         LiquidInfrastructureERC20 infraERC20,
         LiquidInfrastructureNFT nftToManage,
@@ -161,25 +185,5 @@ contract LiquidInfrastructureERC20Test is Test {
         assertEq(nftToManage.ownerOf(nftToManage.AccountId()), address(infraERC20));
 
         infraERC20.addManagedNFT(address(nftToManage));
-    }
-
-    function testBasicDistributionTests() public {
-        vm.startPrank(owner);
-        LiquidInfrastructureNFT nft1 = new LiquidInfrastructureNFT("NFT1");
-
-        IERC20 erc20a = mockDistributableTokenA;
-
-        // Register one NFT
-        transferNftToErc20AndManage(liquidInfrastructureERC20, nft1, owner);
-
-        nft1 = LiquidInfrastructureNFT(address(nft1));
-
-        // Allocate some rewards to the NFT
-        uint256 rewardAmount1 = 100;
-        erc20a.transfer(address(nft1), rewardAmount1);
-        assertEq(erc20a.balanceOf(address(nft1)), rewardAmount1);
-
-        liquidInfrastructureERC20.withdrawFromAllManagedNFTs();
-        liquidInfrastructureERC20.distributeToAllHolders();
     }
 }
