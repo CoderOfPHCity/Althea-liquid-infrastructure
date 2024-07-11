@@ -41,10 +41,14 @@ contract LiquidInfrastructureERC20Test is Test {
         address[] memory distributableERC20s = new address[](1);
 
         mockDistributableTokenA = new TestERC20A();
-        mockDistributableTokenB = new TestERC20B();
-        mockDistributableTokenC = new TestERC20C();
+
+        
+        // mockDistributableTokenB = new TestERC20B();
+        // mockDistributableTokenC = new TestERC20C();
 
         distributableERC20s[0] = address(mockDistributableTokenA);
+
+    
 
         liquidInfrastructureERC20 =
             new LiquidInfrastructureERC20("daniel Token", "DNT", managedNFTs, approvedHolders, 500, distributableERC20s);
@@ -134,18 +138,16 @@ contract LiquidInfrastructureERC20Test is Test {
     }
 
     function testNftManagement() public {
-        // Deploy several LiquidInfrastructureNFTs to test the NFT management features
         LiquidInfrastructureNFT nft1 = new LiquidInfrastructureNFT("account1");
         LiquidInfrastructureNFT nft2 = new LiquidInfrastructureNFT("account2");
 
-        // Test transferring NFT to ERC20 contract and managing it
+        // Test transferring NFT to ERC20
         transferNftToErc20AndManage(liquidInfrastructureERC20, nft1, owner);
 
-        // Transfer the NFT back to the original holder
+
         liquidInfrastructureERC20.releaseManagedNFT(address(nft1), owner);
         assertEq(nft1.ownerOf(nft1.AccountId()), owner);
 
-        // Test failure to manage NFT with a bad signer
         address badSigner = address(3);
         vm.startPrank(badSigner);
 
@@ -164,4 +166,34 @@ contract LiquidInfrastructureERC20Test is Test {
 
         infraERC20.addManagedNFT(address(nftToManage));
     }
+
+//     function testBasicDistributionTests() public {
+//    // liquidInfrastructureNFT[0];
+       
+
+    
+//     // Initialize the NFTs and reward tokens
+//     LiquidInfrastructureNFT nft1 = new LiquidInfrastructureNFT("NFT1");
+//     LiquidInfrastructureNFT nft2 = new LiquidInfrastructureNFT("NFT2");
+//     LiquidInfrastructureNFT nft3 = new LiquidInfrastructureNFT("NFT3");
+//     IERC20 erc20a = mockDistributableTokenA;
+//     IERC20 erc20b = mockDistributableTokenB;
+//     IERC20 erc20c = mockDistributableTokenC;
+
+//     // Register one NFT as a source of reward erc20s
+//     transferNftToErc20AndManage(liquidInfrastructureERC20, nft1, msg.sender);
+//     vm.roll(block.number + 1);
+//     nft1 = LiquidInfrastructureNFT(address(nft1));
+
+//     // Allocate some rewards to the NFT
+//     uint256 rewardAmount1 = 1000000;
+//     erc20a.transfer(address(nft1), rewardAmount1);
+//     assertEq(erc20a.balanceOf(address(nft1)), rewardAmount1);
+
+//     liquidInfrastructureERC20.withdrawFromAllManagedNFTs();
+//     liquidInfrastructureERC20.distributeToAllHolders();
+// }
+
+
+
 }
