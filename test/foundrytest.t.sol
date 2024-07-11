@@ -3,6 +3,7 @@ pragma solidity 0.8.12;
 
 import "forge-std/Test.sol";
 import "../contracts/LiquidInfrastructureERC20.sol";
+import "../contracts/LiquidInfrastructureNFT.sol";
 
 import "../contracts/TestERC20A.sol";
 
@@ -14,6 +15,8 @@ import "../contracts/TestERC721A.sol";
 
 contract LiquidInfrastructureERC20Test is Test {
     LiquidInfrastructureERC20 public liquidInfrastructureERC20;
+    LiquidInfrastructureNFT public liquidInfrastructureNFT;
+
     TestERC20A public mockDistributableTokenA;
     TestERC20B public mockDistributableTokenB;
     TestERC20C public mockDistributableTokenC;
@@ -43,11 +46,13 @@ contract LiquidInfrastructureERC20Test is Test {
 
         distributableERC20s[0] = address(mockDistributableTokenA);
 
-        liquidInfrastructureERC20 = new LiquidInfrastructureERC20(
-            "daniel Token", "DNT", managedNFTs, approvedHolders, 500, distributableERC20s
-        );
+        liquidInfrastructureERC20 =
+            new LiquidInfrastructureERC20("daniel Token", "DNT", managedNFTs, approvedHolders, 500, distributableERC20s);
 
         liquidInfrastructureERC20.transferOwnership(owner);
+
+        liquidInfrastructureNFT = new LiquidInfrastructureNFT("account1");
+        // liquidInfrastructureNFT = new LiquidInfrastructureNFT("account2");
     }
 
     function testMint() public {
@@ -84,10 +89,9 @@ contract LiquidInfrastructureERC20Test is Test {
     }
 
     function testApproveDisapproveWithWrongAccount() public {
-        address nonOwner = makeAddr("nonOwner");
-        vm.startPrank(nonOwner);
+        address pelz = makeAddr("nonOwner");
+        vm.startPrank(pelz);
 
-        //  approve holder1 using a non-owner account
         vm.expectRevert("Ownable: caller is not the owner");
         liquidInfrastructureERC20.approveHolder(holder1);
         assertFalse(liquidInfrastructureERC20.isApprovedHolder(holder3));
@@ -96,5 +100,68 @@ contract LiquidInfrastructureERC20Test is Test {
         vm.expectRevert("Ownable: caller is not the owner");
         liquidInfrastructureERC20.disapproveHolder(holder3);
         assertFalse(liquidInfrastructureERC20.isApprovedHolder(holder3));
+    }
+
+    function testGrantHolder1FailToTransfer() public {
+        uint256 mintAmount = 1000;
+
+        liquidInfrastructureERC20.mintAndDistribute(holder1, mintAmount);
+
+        assertEq(liquidInfrastructureERC20.balanceOf(holder1), 1000);
+
+        vm.startPrank(holder3);
+        vm.expectRevert("receiver not approved to hold the token");
+        liquidInfrastructureERC20.transfer(holder3, mintAmount);
+
+        assertEq(liquidInfrastructureERC20.balanceOf(holder1), 1000);
+        assertEq(liquidInfrastructureERC20.balanceOf(holder3), 0);
+    }
+
+    function testSuccessfullyApproveHolder2() public {
+        uint256 mintAmount = 1000;
+
+        liquidInfrastructureERC20.approveHolder(holder3);
+
+        liquidInfrastructureERC20.mintAndDistribute(holder3, mintAmount);
+        assertTrue(liquidInfrastructureERC20.isApprovedHolder(holder3));
+
+        liquidInfrastructureERC20.approveHolder(holder4);
+
+        // liquidInfrastructureERC20.transfer(holder4, 100);
+
+        assertEq(liquidInfrastructureERC20.balanceOf(holder3), 1000);
+        assertEq(liquidInfrastructureERC20.balanceOf(holder4), 0);
+    }
+
+    function testNftManagement() public {
+        // Deploy several LiquidInfrastructureNFTs to test the NFT management features
+        LiquidInfrastructureNFT nft1 = new LiquidInfrastructureNFT("account1");
+        LiquidInfrastructureNFT nft2 = new LiquidInfrastructureNFT("account2");
+
+        // Test transferring NFT to ERC20 contract and managing it
+        transferNftToErc20AndManage(liquidInfrastructureERC20, nft1, owner);
+
+        // Transfer the NFT back to the original holder
+        liquidInfrastructureERC20.releaseManagedNFT(address(nft1), owner);
+        assertEq(nft1.ownerOf(nft1.AccountId()), owner);
+
+        // Test failure to manage NFT with a bad signer
+        address badSigner = address(3);
+        vm.startPrank(badSigner);
+
+        vm.expectRevert("Ownable: caller is not the owner");
+        liquidInfrastructureERC20.addManagedNFT(address(nft2));
+        vm.stopPrank();
+    }
+
+    function transferNftToErc20AndManage(
+        LiquidInfrastructureERC20 infraERC20,
+        LiquidInfrastructureNFT nftToManage,
+        address nftOwner
+    ) public {
+        nftToManage.transferFrom(nftOwner, address(infraERC20), nftToManage.AccountId());
+        assertEq(nftToManage.ownerOf(nftToManage.AccountId()), address(infraERC20));
+
+        infraERC20.addManagedNFT(address(nftToManage));
     }
 }
